@@ -5,27 +5,17 @@ from django.db.models import UniqueConstraint
 from django.utils import timezone
 from rest_framework.reverse import reverse
 
-from foodgram.config import (
-    MAX_LENGTH_NAME,
-    MAX_UNIT,
-    TAG_COLOR_CODE_LENGTH,
-    TAG_COLOR_CODE_REGEXP,
-    MAX_LENGTH_NAME_SLUG,
-    ORDERING_RECEPT
-
-)
-
 User = get_user_model()
 
 
 class Ingredient(models.Model):
     name = models.CharField(
         'Название',
-        max_length=MAX_LENGTH_NAME
+        max_length=200
     )
     measurement_unit = models.CharField(
         'Единица измерения',
-        max_length=MAX_UNIT
+        max_length=1000
     )
 
     class Meta:
@@ -34,22 +24,22 @@ class Ingredient(models.Model):
         ordering = ['name']
 
     def __str__(self):
-        return f'{self.name}, {self.measurement_unit}'
+        return f'{self.name}[:15], {self.measurement_unit}[:15]'
 
 
 class Tag(models.Model):
     name = models.CharField(
         'Название',
         unique=True,
-        max_length=MAX_LENGTH_NAME
+        max_length=200
     )
     color = models.CharField(
         'Цветовой HEX-код',
         unique=True,
-        max_length=TAG_COLOR_CODE_LENGTH,
+        max_length=7,
         validators=[
             RegexValidator(
-                regex=TAG_COLOR_CODE_REGEXP,
+                regex=r'\A#[0-9a-fA-F]{6}\Z',
                 message='Ваше начение не является цветом в формате HEX!'
             )
         ]
@@ -57,7 +47,7 @@ class Tag(models.Model):
     slug = models.SlugField(
         'Уникальный слаг',
         unique=True,
-        max_length=MAX_LENGTH_NAME_SLUG
+        max_length=200
     )
 
     class Meta:
@@ -65,13 +55,13 @@ class Tag(models.Model):
         verbose_name_plural = 'Теги'
 
     def __str__(self):
-        return self.name
+        return self.name[:15]
 
 
 class Recipe(models.Model):
     name = models.CharField(
         'Название',
-        max_length=MAX_LENGTH_NAME
+        max_length=200
     )
     author = models.ForeignKey(
         User,
@@ -111,12 +101,12 @@ class Recipe(models.Model):
     )
 
     class Meta:
-        ordering = ORDERING_RECEPT
+        ordering = ('-pub_date',)
         verbose_name = 'Рецепт'
         verbose_name_plural = 'Рецепты'
 
     def __str__(self):
-        return self.name
+        return self.name[:15]
 
     def get_absolute_url(self):
         return reverse('api:recipes-detail', kwargs={'pk': self.pk})
@@ -150,8 +140,8 @@ class IngredientInRecipe(models.Model):
 
     def __str__(self):
         return (
-            f'{self.ingredient.name} '
-            f'({self.ingredient.measurement_unit}) - {self.amount} '
+            f'{self.ingredient.name}[:15] '
+            f'({self.ingredient.measurement_unit})[:15] - {self.amount}[:15] '
         )
 
 
@@ -208,7 +198,10 @@ class ShoppingCart(models.Model):
         ]
 
     def __str__(self):
-        return f'{self.user} добавил "{self.recipe}" в Корзину покупок'
+        return (
+            f'{self.user}[:15] '
+            f'добавил "{self.recipe}[:15]" в Корзину покупок'
+        )
 
 
 class Link(models.Model):

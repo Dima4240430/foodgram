@@ -1,11 +1,8 @@
-from django.contrib.auth import get_user_model
-from rest_framework import serializers
-from rest_framework.fields import SerializerMethodField
-from django.contrib.auth.hashers import make_password
+from djoser.serializers import UserSerializer
 from drf_extra_fields.fields import Base64ImageField
+from rest_framework import serializers
 
-from foodgram import config
-from user.models import Subscribe
+from user.models import Subscribe, User
 from recipes.models import (
     Ingredient,
     IngredientInRecipe,
@@ -16,8 +13,6 @@ from recipes.models import (
     ShoppingCart
 )
 
-User = get_user_model()
-
 
 class UserAvatarSerialiser(serializers.ModelSerializer):
     avatar = Base64ImageField(allow_null=True, required=False)
@@ -27,84 +22,33 @@ class UserAvatarSerialiser(serializers.ModelSerializer):
         fields = ('avatar',)
 
 
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = (
-            'email',
-            'id',
-            'username',
-            'first_name',
-            'last_name',
-            'is_subscribed',
-            'avatar',
-        )
-
-
 class CustomUserSerializer(UserSerializer):
-    is_subscribed = SerializerMethodField(read_only=True)
+    avatar = Base64ImageField(allow_null=True, required=False)
+    is_subscribed = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = (
             'id',
             'username',
+            'email',
             'first_name',
             'last_name',
-            'email',
-            'is_subscribed',
             'avatar',
+            'is_subscribed',
         )
-        extra_kwargs = {
-            'id': {'required': True},
-        }
 
     def get_is_subscribed(self, obj):
-        user = self.context.get('request').user
-        if user.is_anonymous:
+        request = self.context.get('request')
+        if not request or request.user.is_anonymous:
             return False
         return Subscribe.objects.filter(
-            user=user,
+            user=request.user,
             author=obj
         ).exists()
 
-    def to_representation(self, instance):
-        if isinstance(instance, User) and instance.is_anonymous:
-            representation = super().to_representation(instance)
-            representation.pop('email', None)
-            return representation
-        return super().to_representation(instance)
-
-
-class CreateUserSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True)
-
-    class Meta:
-        model = User
-        fields = ('id',) + tuple(User.REQUIRED_FIELDS) + (
-            config.USERNAME_FIELD,
-            'password',
-            'first_name',
-            'last_name',
-        )
-
-    def validate(self, attrs):
-        if 'first_name' not in attrs:
-            raise serializers.ValidationError(
-                {'first_name': 'This field is required.'}
-            )
-        if 'last_name' not in attrs:
-            raise serializers.ValidationError(
-                {'last_name': 'This field is required.'}
-            )
-        return attrs
-
     def create(self, validated_data):
-        validated_data['password'] = make_password(
-            validated_data.get('password')
-        )
-        user = User.objects.create_user(**validated_data)
-        return user
+        return User.objects.create_user(**validated_data)
 
 
 class IngredientSerializer(serializers.ModelSerializer):
@@ -132,6 +76,11 @@ class IngredientRecipeSerializer(serializers.ModelSerializer):
     )
     amount = serializers.IntegerField()
 
+    class Meta:
+        model = IngredientInRecipe
+        fields = ('id', 'name',
+                  'measurement_unit', 'amount',)
+
     @staticmethod
     def validate_amount(value):
         """Метод валидации количества"""
@@ -141,11 +90,6 @@ class IngredientRecipeSerializer(serializers.ModelSerializer):
                 'Количество ингредиента должно быть больше 0!'
             )
         return value
-
-    class Meta:
-        model = IngredientInRecipe
-        fields = ('id', 'name',
-                  'measurement_unit', 'amount',)
 
 
 class RecipeSerializer(serializers.ModelSerializer):
@@ -173,18 +117,16 @@ class RecipeSerializer(serializers.ModelSerializer):
         )
 
     def get_is_favorited(self, obj):
-        request = self.context.get('request')
-        if request is None or request.user.is_anonymous:
-            return False
-        return Favourite.objects.filter(
-            user=request.user, recipe=obj
-        ).exists()
+        return self._get_boolean_field(obj, Favourite)
 
     def get_is_in_shopping_cart(self, obj):
+        return self._get_boolean_field(obj, ShoppingCart)
+
+    def _get_boolean_field(self, obj, model):
         request = self.context.get('request')
-        if request is None or request.user.is_anonymous:
+        if not request or request.user.is_anonymous:
             return False
-        return ShoppingCart.objects.filter(
+        return model.objects.filter(
             user=request.user, recipe=obj
         ).exists()
 

@@ -1,4 +1,3 @@
-from django.contrib.auth import get_user_model
 from django.http import HttpResponse, Http404
 from djoser.views import UserViewSet
 from django.db.models import Sum
@@ -12,6 +11,7 @@ from rest_framework.permissions import (
     SAFE_METHODS,
     AllowAny,
     IsAuthenticated,
+    IsAuthenticatedOrReadOnly
 )
 from rest_framework.response import Response
 
@@ -19,7 +19,6 @@ from .filters import IngredientFilter, RecipeFilter, get_short_url
 from .pagination import CustomPagination
 from .permissions import IsOwnerAdminOrReadOnly
 from .serializers import (
-    CreateUserSerializer,
     CustomUserSerializer,
     IngredientSerializer,
     RecipeSerializer,
@@ -40,30 +39,77 @@ from recipes.models import (
     ShoppingCart,
     Tag
 )
-from user.models import Subscribe
-
-User = get_user_model()
+from user.models import Subscribe, User
 
 
-class UsersViewSet(UserViewSet):
-
+class UserViewSet(UserViewSet):
     queryset = User.objects.all()
     serializer_class = CustomUserSerializer
+    permission_classes = (IsAuthenticatedOrReadOnly,)
     pagination_class = CustomPagination
-    permission_classes = (IsOwnerAdminOrReadOnly,)
-    lookup_field = 'id'
 
     def get_permissions(self):
         if self.action == 'me':
-            self.permission_classes = (IsOwnerAdminOrReadOnly,)
+            self.permission_classes = (IsAuthenticated,)
         return super().get_permissions()
 
-    def get_serializer_class(self):
-        if self.action == 'create':
-            return CreateUserSerializer
-        elif self.action == 'subscribe':
-            return SubscribedSerislizer
-        return super().get_serializer_class()
+    @action(detail=True, methods=['POST', 'DELETE'],
+            permission_classes=(IsAuthenticated,),
+            url_path='subscribe', url_name='subscribe'
+            )
+    def subscribe(self, request, id):
+        user = request.user
+        author = get_object_or_404(User, id=id)
+        change_subscription_status = Subscribe.objects.filter(
+            user=user.id, author=author.id)
+        serializer = SubscribedSerislizer(
+            data={'user': user.id, 'author': author.id},
+            context={'request': request})
+
+        if request.method == 'POST':
+            if user == author:
+                return Response('Вы пытаетесь подписаться на себя!!',
+                                status=status.HTTP_400_BAD_REQUEST)
+            if change_subscription_status.exists():
+                return Response(f'Вы уже подписаны на {author}',
+                                status=status.HTTP_400_BAD_REQUEST)
+            serializer.is_valid()
+            serializer.save()
+            return Response(serializer.data,
+                            status=status.HTTP_201_CREATED)
+        if change_subscription_status.exists():
+            change_subscription_status.delete()
+            return Response(f'Вы отписались от {author}',
+                            status=status.HTTP_204_NO_CONTENT)
+        return Response(f'Вы не подписаны на {author}',
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['GET', 'PUT'],
+            permission_classes=(IsAuthenticated,),
+            url_path='me/avatar', url_name='avatar'
+            )
+    def apply_avatar(self, request):
+        """Метод для работы с аватаром"""
+        serializer = UserAvatarSerialiser(
+            self.request.user, data=request.data)
+        if request.method == 'PUT' or 'GET':
+            if (serializer.is_valid() and 'avatar' in request.data):
+                serializer.save()
+                return Response(serializer.data,
+                                status=status.HTTP_200_OK)
+            return Response(serializer.errors,
+                            status=status.HTTP_400_BAD_REQUEST)
+        return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    @apply_avatar.mapping.delete
+    def delete_avatar(self, request):
+        serializer = UserAvatarSerialiser(
+            self.request.user, data=request.data)
+        if (serializer.is_valid()):
+            request.user.avatar.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(serializer.errors,
+                        status=status.HTTP_400_BAD_REQUEST)
 
     @action(
         detail=False,
@@ -88,86 +134,6 @@ class UsersViewSet(UserViewSet):
             context={'request': request}
         )
         return Response(serializer.data)
-
-    @action(
-        detail=True,
-        methods=['POST', 'DELETE'],
-        permission_classes=(IsAuthenticated,),
-        url_path='subscribe',
-        url_name='subscribe'
-    )
-    def subscribe(self, request, id):
-        user = request.user
-        author = get_object_or_404(
-            User,
-            id=id
-        )
-        change__status = Subscribe.objects.filter(
-            user=user.id, author=author.id)
-        serializer = SubscribedSerislizer(
-            data={'user': user.id, 'author': author.id},
-            context={'request': request})
-
-        if request.method == 'POST':
-            if user == author:
-                return Response(
-                    'Вы пытаетесь подписаться на себя!!',
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            if change__status.exists():
-                return Response(
-                    f'Вы уже подписаны на {author}',
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            serializer.is_valid()
-            serializer.save()
-            return Response(
-                serializer.data,
-                status=status.HTTP_201_CREATED
-            )
-        if change__status.exists():
-            change__status.delete()
-            return Response(
-                f'Вы отписались от {author}',
-                status=status.HTTP_204_NO_CONTENT
-            )
-        return Response(
-            f'Вы не подписаны на {author}',
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-    @action(
-        detail=False,
-        methods=['GET', 'PUT'],
-        permission_classes=(IsAuthenticated,),
-        url_path='me/avatar',
-        url_name='avatar'
-    )
-    def apply_avatar(self, request):
-        serializer = UserAvatarSerialiser(
-            self.request.user, data=request.data)
-        if request.method == 'PUT':
-            if serializer.is_valid() and 'avatar' in request.data:
-                serializer.save()
-                return Response(
-                    serializer.data,
-                    status=status.HTTP_200_OK
-                )
-            return Response(
-                serializer.errors,
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        elif request.method == 'GET':
-            return Response(
-                serializer.data,
-                status=status.HTTP_200_OK
-            )
-        return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
-    @apply_avatar.mapping.delete
-    def delete_avatar(self, request):
-        request.user.avatar.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class IngredientsViewSet(ReadOnlyModelViewSet):
@@ -212,62 +178,58 @@ class RecipeViewSet(ModelViewSet):
             return RecipeSerializer
         return RecipeWriteSerializer
 
-    def general_method(self, request, pk, model):
-        # управление подписками и списком покупок
+    def post_method(self, request, pk, model):
         user = request.user
-        if request.method == 'POST':
-            try:
-                recipe = get_object_or_404(Recipe, id=pk)
-            except Http404:
-                return Response(
-                    'Рецепт не найден',
-                    status=status.HTTP_404_NOT_FOUND
-                )
-
-            if model.objects.filter(
-                user=user,
-                recipe=recipe
-            ).exists():
-                return Response(
-                    {'errors': f'"{recipe.name}" уже добавлен в корзину.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            model.objects.create(
-                user=user,
-                recipe=recipe
-            )
-            serializer = RecipesShortSerializer(recipe)
+        try:
+            recipe = get_object_or_404(Recipe, id=pk)
+        except Http404:
             return Response(
-                serializer.data,
-                status=status.HTTP_201_CREATED
+                {'error': 'Рецепт не найден'},
+                status=status.HTTP_404_NOT_FOUND
             )
-        if request.method == 'DELETE':
-            try:
-                recipe = get_object_or_404(
-                    Recipe,
-                    id=pk
-                )
-            except Http404:
-                return Response(
-                    'Такого рецепта не существует',
-                    status=status.HTTP_404_NOT_FOUND
-                )
-            obj = model.objects.filter(
-                user=user,
-                recipe=recipe
-            )
-            if obj.exists():
-                obj.delete()
-                return Response(
-                    status=status.HTTP_204_NO_CONTENT
-                )
+        if model.objects.filter(user=user, recipe=recipe).exists():
             return Response(
-                {'errors': f'В избранном нет рецепта \"{recipe.name}\"'},
+                {'errors': f'"{recipe.name}" уже добавлен в корзину.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        model.objects.create(user=user, recipe=recipe)
+        serializer = RecipesShortSerializer(recipe)
         return Response(
-            status=status.HTTP_405_METHOD_NOT_ALLOWED
+            serializer.data,
+            status=status.HTTP_201_CREATED
         )
+
+    def delete_method(self, request, pk, model):
+        user = request.user
+        try:
+            recipe = get_object_or_404(Recipe, id=pk)
+        except Http404:
+            return Response(
+                {'error': 'Такого рецепта не существует'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        obj = model.objects.filter(user=user, recipe=recipe)
+        if obj.exists():
+            obj.delete()
+            return Response(
+                status=status.HTTP_204_NO_CONTENT
+            )
+        else:
+            return Response(
+                {'error': f'В избранном нет рецепта "{recipe.name}"'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    def general_method(self, request, pk, model):
+        if request.method == 'POST':
+            return self.post_method(request, pk, model)
+        elif request.method == 'DELETE':
+            return self.delete_method(request, pk, model)
+        else:
+            return Response(
+                {'error': 'Метод не разрешен'},
+                status=status.HTTP_405_METHOD_NOT_ALLOWED
+            )
 
     @action(
         detail=True,

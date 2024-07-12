@@ -1,30 +1,25 @@
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import RegexValidator
 from django.db import models
-from django.db.models import UniqueConstraint
 
-from foodgram.config import (
-    ORDERING_USER,
-    ORDERING_SUBCCRIBE,
-    MAX_PASSWORD_LENGTH,
-    MAX_LENGTH_NAME_FIRST_NAME,
-    MAX_LENGTH_USERNAME, MAX_LENGTH_LAST_NAME,
-    MAX_LENGTH_EMAIL,
-    USER,
-    ROLES
+USER = 'user'
+ADMIN = 'admin'
+
+ROLES = (
+    (USER, 'Аут. пользователь'),
+    (ADMIN, 'Администратор')
 )
 
 
 class User(AbstractUser):
-    """Модель прользователей"""
     email = models.EmailField(
         verbose_name='Электронная почта',
-        max_length=MAX_LENGTH_EMAIL,
+        max_length=254,
         unique=True
     )
     username = models.CharField(
         verbose_name='Имя пользователя',
-        max_length=MAX_LENGTH_USERNAME,
+        max_length=150,
         unique=True,
         validators=[RegexValidator(
             regex=r'^[\w.@+-]+$',
@@ -32,15 +27,15 @@ class User(AbstractUser):
         )])
     first_name = models.CharField(
         verbose_name='Имя',
-        max_length=MAX_LENGTH_NAME_FIRST_NAME
+        max_length=150
     )
     last_name = models.CharField(
         verbose_name='Фамилия',
-        max_length=MAX_LENGTH_LAST_NAME
+        max_length=150
     )
     password = models.CharField(
         verbose_name='Пароль',
-        max_length=MAX_PASSWORD_LENGTH
+        max_length=100
     )
     avatar = models.ImageField(
         verbose_name='Аватар',
@@ -63,7 +58,7 @@ class User(AbstractUser):
     ]
 
     class Meta:
-        ordering = ORDERING_USER
+        ordering = ('username',)
         verbose_name = "Пользователь"
         verbose_name_plural = "Пользователи"
 
@@ -84,11 +79,15 @@ class Subscribe(models.Model):
         verbose_name="Автор",
         on_delete=models.CASCADE,
     )
+    subscription_date = models.DateTimeField(
+        verbose_name='Дата подписки',
+        auto_now_add=True
+    )
 
     class Meta:
-        ordering = ORDERING_SUBCCRIBE
+        ordering = ('subscription_date',)
         constraints = [
-            UniqueConstraint(
+            models.UniqueConstraint(
                 fields=['user', 'author'],
                 name='unique_subscription'
             )
