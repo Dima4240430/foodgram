@@ -53,49 +53,66 @@ class UserViewSet(UserViewSet):
             self.permission_classes = (IsAuthenticated,)
         return super().get_permissions()
 
-    @action(detail=True, methods=['POST', 'DELETE'],
-            permission_classes=(IsAuthenticated,),
-            url_path='subscribe', url_name='subscribe'
-            )
+    @action(
+        detail=True,
+        methods=['POST', 'DELETE'],
+        permission_classes=(IsAuthenticated,),
+        url_path='subscribe',
+        url_name='subscribe'
+    )
     def subscribe(self, request, id):
         user = request.user
-        author = get_object_or_404(User, id=id)
+        author = get_object_or_404(
+            User,
+            id=id
+        )
         change_subscription_status = Subscribe.objects.filter(
-            user=user.id, author=author.id)
+            user=user.id,
+            author=author.id
+        )
         serializer = SubscribedSerislizer(
             data={'user': user.id, 'author': author.id},
-            context={'request': request})
+            context={'request': request}
+        )
 
         if request.method == 'POST':
             if user == author:
-                return Response('Вы пытаетесь подписаться на себя!!',
-                                status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    'Вы пытаетесь подписаться на себя!!',
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             if change_subscription_status.exists():
-                return Response(f'Вы уже подписаны на {author}',
-                                status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    f'Вы уже подписаны на {author}',
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             serializer.is_valid()
             serializer.save()
-            return Response(serializer.data,
-                            status=status.HTTP_201_CREATED)
+            return Response(
+                serializer.data,
+                status=status.HTTP_201_CREATED
+            )
         if change_subscription_status.exists():
             change_subscription_status.delete()
-            return Response(f'Вы отписались от {author}',
-                            status=status.HTTP_204_NO_CONTENT)
-        return Response(f'Вы не подписаны на {author}',
-                        status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                f'Вы отписались от {author}',
+                status=status.HTTP_204_NO_CONTENT
+            )
+        return Response(
+            f'Вы не подписаны на {author}',
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
     @action(
-            detail=False,
-            url_path="me/avatar",
-            methods=["put", "delete"]
-        )
+        detail=False,
+        url_path="me/avatar",
+        methods=["put", "delete"]
+    )
     def avatar(self, request, *args, **kwargs):
         if request.method == "DELETE":
             request.user.avatar = None
             request.user.save()
-            return Response(
-                status=status.HTTP_204_NO_CONTENT
-            )
+            return Response(status=status.HTTP_204_NO_CONTENT)
         serializer = UserAvatarSerialiser(
             data=request.data,
             instance=request.user
@@ -262,9 +279,12 @@ class RecipeViewSet(ModelViewSet):
         shopping_list = self.ingredients_to_txt(ingredients)
         return HttpResponse(shopping_list, content_type='text/plain')
 
-    @action(detail=True, methods=['POST', 'DELETE'],
-            permission_classes=[IsAuthenticated],
-            url_path='favorite',
-            url_name='favorite',)
+    @action(
+        detail=True,
+        methods=['POST', 'DELETE'],
+        permission_classes=[IsAuthenticated],
+        url_path='favorite',
+        url_name='favorite',
+    )
     def favorite(self, request, pk):
         return self.general_method(request, pk, Favourite)
