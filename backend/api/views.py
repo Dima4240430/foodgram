@@ -84,32 +84,25 @@ class UserViewSet(UserViewSet):
         return Response(f'Вы не подписаны на {author}',
                         status=status.HTTP_400_BAD_REQUEST)
 
-    @action(detail=False, methods=['GET', 'PUT'],
-            permission_classes=(IsAuthenticated,),
-            url_path='me/avatar', url_name='avatar'
+    @action(
+            detail=False,
+            url_path="me/avatar",
+            methods=["put", "delete"]
+        )
+    def avatar(self, request, *args, **kwargs):
+        if request.method == "DELETE":
+            request.user.avatar = None
+            request.user.save()
+            return Response(
+                status=status.HTTP_204_NO_CONTENT
             )
-    def apply_avatar(self, request):
-        """Метод для работы с аватаром"""
         serializer = UserAvatarSerialiser(
-            self.request.user, data=request.data)
-        if request.method == 'PUT' or 'GET':
-            if (serializer.is_valid() and 'avatar' in request.data):
-                serializer.save()
-                return Response(serializer.data,
-                                status=status.HTTP_200_OK)
-            return Response(serializer.errors,
-                            status=status.HTTP_400_BAD_REQUEST)
-        return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
-    @apply_avatar.mapping.delete
-    def delete_avatar(self, request):
-        serializer = UserAvatarSerialiser(
-            self.request.user, data=request.data)
-        if (serializer.is_valid()):
-            request.user.avatar.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        return Response(serializer.errors,
-                        status=status.HTTP_400_BAD_REQUEST)
+            data=request.data,
+            instance=request.user
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
     @action(
         detail=False,

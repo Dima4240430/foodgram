@@ -1,6 +1,6 @@
 from rest_framework.permissions import SAFE_METHODS, BasePermission
 
-from foodgram.config import ADMIN
+ADMIN = 'admin'
 
 
 class IsAdminOrReadOnly(BasePermission):
