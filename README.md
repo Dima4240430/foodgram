@@ -52,20 +52,20 @@ sudo docker compose -f docker-compose.production.yml exec python manage.py tags
  Откройте файл настроек вашего Django проекта settings.py и определите настройку CSV_DIR:
  CSV_DIR = BASE_DIR / 'csv_files'  # Замените 'csv_files' на фактическое имя каталога.
 
-```
-## Статус
+
+### Статус
 ![Workflow Status](https://github.com/Dima4240430/foodgram/actions/workflows/main.yml/badge.svg)
 
 **Развернутный проект доступен по сдресу [foodgramius.ddns.net](https://bumfa-foodgram.duckdns.org)**
 
-## Администратор сайта
-```
+### Администратор сайта
+
 Электронная почта: admin@admin.ru
 Имя пользователя: admin
 Имя: admin
 Фамилия: admin
 Пароль: Dimka424
-```
 
-## Автор
+
+### Автор
 Дмитрий Давыдов
