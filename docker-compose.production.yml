@@ -33,8 +33,6 @@ services:
       - media:/media/
     ports:
       - 8000:80
-    depends_on: 
-      backend:
-        condition: service_healthy
-      frontend:
-        condition: service_healthy
+    depends_on:
+      - backend
+      - frontend
