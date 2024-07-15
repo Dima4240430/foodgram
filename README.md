@@ -35,26 +35,24 @@ ALLOWED_HOSTS = '127.0.0.1'
 Скопируйте в нее с локального компьютера файл infra/nginx.conf .env и docker-compose.production.yml
 
 Выполните последовательно команды ниже, чтобы создать миграции, собрать статику, переместить ее в ожидаемую директорию и наполнить БД подготовленными данными.
+Перед заполнением БД:
+ откройте файл настроек вашего Django проекта settings.py и определите настройку CSV_DIR:
+ CSV_DIR = BASE_DIR / 'csv_files'  # Замените 'csv_files' на фактическое имя каталога.
 ```
 docker compose -f docker-compose.production.yml up
 sudo docker compose -f docker-compose.production.yml exec backend python manage.py makemigrations
 sudo docker compose -f docker-compose.production.yml exec backend python manage.py migrate
 sudo docker compose -f docker-compose.production.yml exec backend python manage.py collectstatic
 sudo docker compose -f docker-compose.production.yml exec backend cp -r /app/static/. /code/static/
-sudo docker compose -f docker-compose.production.yml exec backend python manage.py loaddata data/ingredients.json
-sudo docker compose -f docker-compose.production.yml exec backend python manage.py loaddata data/tags.json
+sudo docker compose -f docker-compose.production.yml exec -ti backend python manage.py data_csv
+sudo docker compose -f docker-compose.production.yml exec python manage.py tags
 ```
-# Перед заполнением БД
+Перед заполнением БД
 
-```
  Откройте файл настроек вашего Django проекта settings.py и определите настройку CSV_DIR:
  CSV_DIR = BASE_DIR / 'csv_files'  # Замените 'csv_files' на фактическое имя каталога.
 
 ```
-# Наполнение БД ингредиентами производится командой:
-sudo docker compose -f docker-compose.production.yml exec -ti backend python manage.py data_csv
-# Наполнение БД ингредиентами тэгами производится:
-sudo docker compose -f docker-compose.production.yml exec python manage.py tags
 ## Статус
 ![Workflow Status](https://github.com/Dima4240430/foodgram/actions/workflows/main.yml/badge.svg)
 
