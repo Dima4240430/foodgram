@@ -1,3 +1,4 @@
+from django.forms import ValidationError
 from djoser.serializers import UserSerializer
 from rest_framework import serializers
 
@@ -20,6 +21,11 @@ class UserAvatarSerialiser(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('avatar',)
+
+    def validate_avatar(self, value):
+        if not value:
+            raise ValidationError("Поле 'avatar' должно быть заполнено.")
+        return value
 
 
 class CustomUserSerializer(UserSerializer):
@@ -116,19 +122,19 @@ class RecipeSerializer(serializers.ModelSerializer):
             'cooking_time',
         )
 
-    def get_is_favorited(self, obj):
-        return self._get_boolean_field(obj, Favourite)
-
-    def get_is_in_shopping_cart(self, obj):
-        return self._get_boolean_field(obj, ShoppingCart)
-
-    def _get_boolean_field(self, obj, model):
+    def check_if_exists(self, obj, model):
         request = self.context.get('request')
-        if not request or request.user.is_anonymous:
+        if request is None or request.user.is_anonymous:
             return False
         return model.objects.filter(
             user=request.user, recipe=obj
         ).exists()
+
+    def get_is_favorited(self, obj):
+        return self.check_if_exists(obj, Favourite)
+
+    def get_is_in_shopping_cart(self, obj):
+        return self.check_if_exists(obj, ShoppingCart)
 
 
 class CreateIngredientsInRecipeSerializer(serializers.ModelSerializer):
@@ -159,29 +165,42 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Recipe
-        fields = ('name', 'author', 'image', 'text',
-                  'ingredients', 'tags', 'cooking_time')
+        fields = (
+            'name',
+            'author',
+            'image',
+            'text',
+            'ingredients',
+            'tags',
+            'cooking_time'
+        )
 
     def validate_cooking_time(self, value):
         if value <= 0:
             raise serializers.ValidationError(
-                'Время приготовления должно быть больше 0!')
+                'Время приготовления должно быть больше 0!'
+            )
         return value
 
     def validate(self, data):
         tags = self.initial_data.get('tags')
         if not tags:
             raise serializers.ValidationError(
-                'Должен быть отмечено не меньше 1 тега')
+                'Должен быть отмечено не меньше 1 тега'
+            )
         if len(tags) != len(set(tags)):
             raise serializers.ValidationError(
-                'Теги должны быть уникальными')
+                'Теги должны быть уникальными'
+            )
 
         ingredients = self.initial_data.get('ingredients')
         if not ingredients:
-            raise serializers.ValidationError({
-                'ingredients':
-                'Должен быть хотя бы один ингредиент'})
+            raise serializers.ValidationError(
+                {
+                    'ingredients':
+                    'Должен быть хотя бы один ингредиент'
+                }
+            )
 
         ingredient_list = []
         for item in ingredients:
@@ -189,15 +208,20 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
                 ingredient = Ingredient.objects.get(pk=item['id'])
             except Ingredient.DoesNotExist:
                 raise serializers.ValidationError(
-                    'Введен не существующий ингредиент')
+                    'Введен не существующий ингредиент'
+                )
             if ingredient in ingredient_list:
                 raise serializers.ValidationError(
-                    'Ингридиенты должны быть уникальными')
+                    'Ингридиенты должны быть уникальными'
+                )
             ingredient_list.append(ingredient)
             if int(item['amount']) < 1:
-                raise serializers.ValidationError({
-                    'ingredients':
-                    ('Значение ингредиента должно быть больше 0')})
+                raise serializers.ValidationError(
+                    {
+                        'ingredients':
+                        ('Значение ингредиента должно быть больше 0')
+                    }
+                )
         data['ingredients'] = ingredients
         image = self.initial_data.get('image')
         if not image:
@@ -331,5 +355,8 @@ class SubscribedSerislizer(serializers.ModelSerializer):
     def to_representation(self, instanсe):
         request = self.context.get('request')
         context = {'request': request}
-        serialiser = SubscriptionsSerializer(instanсe, context=context)
+        serialiser = SubscriptionsSerializer(
+            instanсe,
+            context=context
+        )
         return serialiser.data

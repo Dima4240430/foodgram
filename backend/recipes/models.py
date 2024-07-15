@@ -2,7 +2,6 @@ from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator, RegexValidator
 from django.db import models
 from django.db.models import UniqueConstraint
-from django.utils import timezone
 from rest_framework.reverse import reverse
 
 User = get_user_model()
@@ -85,8 +84,9 @@ class Recipe(models.Model):
         ]
     )
     pub_date = models.DateTimeField(
-        "Дата публикации",
-        default=timezone.now,
+        auto_now_add=True,
+        verbose_name='Дата публикации',
+        db_index=True
     )
     ingredients = models.ManyToManyField(
         Ingredient,
@@ -98,6 +98,10 @@ class Recipe(models.Model):
         Tag,
         related_name='recipes',
         verbose_name='Теги'
+    )
+    direct_link = models.URLField(
+        verbose_name='Cсылка на рецепт',
+        blank=True
     )
 
     class Meta:
@@ -215,7 +219,7 @@ class Link(models.Model):
         blank=True
     )
     short_link = models.CharField(
-        max_length=20,
+        max_length=50,
         verbose_name='Короткая ссылка на рецепт',
         unique=False
     )

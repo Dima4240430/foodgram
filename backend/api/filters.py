@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.contrib.sites.models import Site
 from django_filters.rest_framework import FilterSet, filters, NumberFilter
 import random
 import string
@@ -54,4 +55,6 @@ class RecipeFilter(FilterSet):
 def get_short_url():
     characters = string.ascii_letters + string.digits
     short_url = ''.join(random.choices(characters, k=4))
-    return "http:/localhost/s/" + short_url
+    current_site = Site.objects.get_current()
+    current_domain = current_site.domain
+    return f"http://{current_domain}/s/{short_url}"
