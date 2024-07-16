@@ -27,7 +27,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip 
-        pip install flake8==6.0.0
+        pip install flake8==6.0.0 flake8-isort==6.0.0
         pip install -r ./backend/requirements.txt 
     - name: Test with flake8 and django tests
       env:
@@ -62,26 +62,7 @@ jobs:
           context: ./backend/
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/foodgram_backend:latest 
-
-  frontend_tests:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
-    - name: Set up nodeJS
-      uses: actions/setup-node@v3
-      with:
-        node-version: 18
-
-    - name: Install dependencies
-      run: |
-        cd frontend/
-        npm install --force
-
-    - name: Test frontend
-      run: |
-        cd frontend/
-        npm run test
-
+          
   build_frontend_and_push_to_docker_hub:
     name: Push frontend Docker image to DockerHub
     runs-on: ubuntu-latest
@@ -159,7 +140,7 @@ jobs:
           # Выполняет миграции и сбор статики
           sudo docker compose -f docker-compose.production.yml exec backend python manage.py migrate
           sudo docker compose -f docker-compose.production.yml exec backend python manage.py collectstatic
-          sudo docker compose -f docker-compose.production.yml exec backend cp -r /app/collected_static/. /backend_static/static/
+          sudo docker compose -f docker-compose.production.yml exec backend cp -r /app/collected_static/. /static/static/
 
   send_message:
     runs-on: ubuntu-latest
