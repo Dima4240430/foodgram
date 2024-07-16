@@ -1,8 +1,9 @@
-from django.contrib.auth import get_user_model
-from django.contrib.sites.models import Site
-from django_filters.rest_framework import FilterSet, filters, NumberFilter
 import random
 import string
+
+from django.contrib.auth import get_user_model
+from django.contrib.sites.models import Site
+from django_filters.rest_framework import FilterSet, NumberFilter, filters
 
 from recipes.models import Ingredient, Recipe, Tag
 

@@ -3,16 +3,9 @@ from djoser.serializers import UserSerializer
 from rest_framework import serializers
 
 from api.utils import Base64ImageField
+from recipes.models import (Favourite, Ingredient, IngredientInRecipe, Link,
+                            Recipe, ShoppingCart, Tag)
 from user.models import Subscribe, User
-from recipes.models import (
-    Ingredient,
-    IngredientInRecipe,
-    Link,
-    Recipe,
-    Tag,
-    Favourite,
-    ShoppingCart
-)
 
 
 class UserAvatarSerialiser(serializers.ModelSerializer):

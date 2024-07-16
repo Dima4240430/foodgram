@@ -1,45 +1,28 @@
-from django.http import HttpResponse, Http404
-from djoser.views import UserViewSet
 from django.db.models import Sum
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
-from rest_framework import status
-from rest_framework.views import APIView
-from rest_framework.generics import ListAPIView
-from rest_framework.viewsets import ReadOnlyModelViewSet, ModelViewSet
 from django_filters.rest_framework import DjangoFilterBackend
+from djoser.views import UserViewSet
+from rest_framework import status
 from rest_framework.decorators import action
-from rest_framework.permissions import (
-    SAFE_METHODS,
-    AllowAny,
-    IsAuthenticated,
-)
+from rest_framework.generics import ListAPIView
+from rest_framework.permissions import SAFE_METHODS, AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
+
+from recipes.models import (Favourite, Ingredient, IngredientInRecipe, Link,
+                            Recipe, ShoppingCart, Tag)
+from user.models import Subscribe, User
 
 from .filters import IngredientFilter, RecipeFilter, get_short_url
 from .pagination import CustomPagination
-from .permissions import IsOwnerAdminOrReadOnly, IsAdminOrReadOnly
-from .serializers import (
-    CustomUserSerializer,
-    IngredientSerializer,
-    RecipeSerializer,
-    RecipeWriteSerializer,
-    RecipesShortSerializer,
-    ShortLinkSerialiser,
-    SubscribedSerislizer,
-    SubscriptionsSerializer,
-    TagSerializer,
-    UserAvatarSerialiser
-)
-from recipes.models import (
-    Favourite,
-    Ingredient,
-    IngredientInRecipe,
-    Link,
-    Recipe,
-    ShoppingCart,
-    Tag
-)
-from user.models import Subscribe, User
+from .permissions import IsAdminOrReadOnly, IsOwnerAdminOrReadOnly
+from .serializers import (CustomUserSerializer, IngredientSerializer,
+                          RecipeSerializer, RecipesShortSerializer,
+                          RecipeWriteSerializer, ShortLinkSerialiser,
+                          SubscribedSerislizer, SubscriptionsSerializer,
+                          TagSerializer, UserAvatarSerialiser)
 
 
 class UserViewSet(UserViewSet):
